@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk & Nota Pembayaran - Toko Najma Komputer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter & Thermal Receipt Mono Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- html2canvas for Download Image feature -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- JSBarcode for real barcode rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        receipt: ['"Courier Prime"', 'Courier', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Styles tailored for thermal receipt preview & print */
+        .receipt-paper {
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            color: #111111;
+        }
+
+        /* Continuous jagged border simulation for thermal paper look */
+        .receipt-bottom-teeth {
+            background: radial-gradient(circle, transparent, transparent 50%, #ffffff 50%, #ffffff 100%);
+            background-size: 12px 12px;
+            height: 12px;
+        }
+
+        /* Hide everything except receipt during print */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-receipt, #printable-receipt * {
+                visibility: visible;
+            }
+            #printable-receipt {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100% !important;
+                max-width: 80mm !important; /* 80mm thermal paper standard width */
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 12px !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-600 text-white p-2.5 rounded-xl shadow-sm">
+                    <i class="fa-solid fa-print text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900 leading-tight">TOKO NAJMA KOMPUTER</h1>
+                    <p class="text-xs text-slate-500">Generator Struk & Nota Pembayaran PPOB</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="toggleHistoryModal()" class="px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-slate-500"></i>
+                    <span>Riwayat</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT PANEL: Dynamic Form Settings (7 cols) -->
+        <section class="lg:col-span-7 space-y-6 no-print">
+            <!-- Category Selection Card -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Pilih Kategori Transaksi</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="category-buttons">
+                    <!-- Dynamic Category buttons initialized via JS -->
+                </div>
+            </div>
+
+            <!-- Dynamic Form Input Card -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h2 class="font-semibold text-slate-800 flex items-center gap-2" id="form-title">
+                        <i class="fa-solid fa-pen-to-square text-brand-600"></i> Data Transaksi
+                    </h2>
+                    <button type="button" onclick="resetForm()" class="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition-colors">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset Form
+                    </button>
+                </div>
+
+                <!-- Shared General Metadata (Date, Time, Invoice No) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">No. Transaksi / Reff</label>
+                        <input type="text" id="input-trxno" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Tanggal</label>
+                        <input type="date" id="input-date" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Waktu</label>
+                        <input type="time" id="input-time" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <!-- Dynamic Form Fields Container -->
+                <form id="dynamic-form" class="space-y-4" onsubmit="event.preventDefault();">
+                    <!-- Injected dynamically based on selected category -->
+                </form>
+
+                <!-- Admin Fee & Status Options -->
+                <div class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Biaya Admin (Rp)</label>
+                        <input type="number" id="input-admin" value="2500" oninput="updateCalculation()" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-500 font-semibold text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Status Pembayaran</label>
+                        <select id="input-status" onchange="renderReceipt()" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-500">
+                            <option value="LUNAS">LUNAS (SUKSES)</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="GAGAL">GAGAL</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: Live Thermal Receipt Preview & Actions (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            <!-- Action Toolbar Header -->
+            <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-sm flex items-center justify-between no-print">
+                <span class="text-xs font-medium uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Dynamic Preview
+                </span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">Lebar:</span>
+                    <button onclick="setPaperWidth('58')" id="btn-w58" class="px-2 py-0.5 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition-colors">58mm</button>
+                    <button onclick="setPaperWidth('80')" id="btn-w80" class="px-2 py-0.5 text-xs rounded bg-brand-600 text-white font-mono transition-colors">80mm</button>
+                </div>
+            </div>
+
+            <!-- Receipt Box Paper Wrapper -->
+            <div class="flex justify-center items-start overflow-x-auto pb-4">
+                <div id="receipt-container" class="w-full max-w-[360px] transition-all duration-300">
+                    <!-- Thermal Receipt Paper -->
+                    <div id="printable-receipt" class="receipt-paper p-5 font-receipt text-xs leading-tight border border-slate-200 rounded-t-lg relative">
+                        
+                        <!-- Header Struk -->
+                        <div class="text-center space-y-1 mb-3 pb-3 border-b border-dashed border-slate-400">
+                            <h2 class="font-bold text-base tracking-wider uppercase" id="rec-store-name">TOKO NAJMA KOMPUTER</h2>
+                            <p class="text-[11px] leading-tight text-slate-700" id="rec-store-addr">Desa Numana, Kec. Wangi-Wangi Selatan<br>Kab. Wakatobi, Sulawesi Tenggara</p>
+                            <p class="text-[11px] text-slate-700">HP/WA: <span id="rec-store-phone">085298875399</span></p>
+                        </div>
+
+                        <!-- Kategori Title Struk -->
+                        <div class="text-center font-bold text-sm tracking-wide uppercase my-2 py-1 bg-slate-100 rounded" id="rec-title">
+                            STRUK PEMBAYARAN
+                        </div>
+
+                        <!-- Metadata Metadata -->
+                        <div class="text-[11px] space-y-0.5 mb-3 border-b border-dashed border-slate-400 pb-2">
+                            <div class="flex justify-between">
+                                <span>No. Trx</span>
+                                <span class="font-bold text-right" id="rec-trxno">NJM-20261104-001</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Tgl/Wkt</span>
+                                <span class="text-right" id="rec-datetime">04/11/2026 08:30:00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Kasir</span>
+                                <span class="text-right" id="rec-kasir">Admin Najma</span>
+                            </div>
+                        </div>
+
+                        <!-- Body Detail Content (Dynamic Payload) -->
+                        <div id="rec-details" class="space-y-1 text-[11px] mb-3">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <!-- Financial Total Section -->
+                        <div class="border-t border-dashed border-slate-400 pt-2 space-y-1 text-[11px] mb-3" id="rec-financials">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <!-- Status & Footer -->
+                        <div class="text-center space-y-2 pt-2 border-t border-dashed border-slate-400">
+                            <div class="inline-block px-3 py-0.5 rounded text-xs font-bold border border-slate-800" id="rec-status-badge">
+                                LUNAS
+                            </div>
+
+                            <!-- Barcode Container -->
+                            <div class="pt-1 flex flex-col items-center justify-center">
+                                <svg id="barcode-svg" class="max-w-full h-10"></svg>
+                            </div>
+
+                            <div class="text-[10px] text-slate-600 space-y-0.5 pt-1">
+                                <p class="font-bold">TERIMA KASIH ATAS KUNJUNGAN ANDA</p>
+                                <p>Simpan Struk ini sebagai bukti pembayaran yang sah.</p>
+                                <p class="text-[9px] text-slate-400 pt-1">Printed by Toko Najma Komputer App</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Thermal paper bottom edge decoration -->
+                    <div class="receipt-bottom-teeth no-print"></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons Toolbar -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5 no-print">
+                <button onclick="handlePrint()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Cetak Struk (Print)</span>
+                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="handleCopyText()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Salin Teks</span>
+                    </button>
+                    <button onclick="handleDownloadImage()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Unduh Gambar</span>
+                    </button>
+                </div>
+                <button onclick="saveTransactionToHistory()" class="w-full border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-bookmark text-amber-500"></i>
+                    <span>Simpan ke Riwayat</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- History Modal -->
+    <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-brand-600"></i>
+                    <h3 class="font-bold text-slate-800">Riwayat Transaksi Tersimpan</h3>
+                </div>
+                <button onclick="toggleHistoryModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-3" id="history-list">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <button onclick="clearAllHistory()" class="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1">
+                    <i class="fa-regular fa-trash-can"></i> Hapus Semua Riwayat
+                </button>
+                <button onclick="toggleHistoryModal()" class="px-4 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-semibold rounded-lg">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm no-print">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Pesan notifikasi</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Categories Configuration Schema
+        const CATEGORIES = [
+            { id: 'pdam', label: 'Tagihan Air PDAM', icon: 'fa-droplet' },
+            { id: 'pln_pasca', label: 'PLN Pasca Bayar', icon: 'fa-bolt' },
+            { id: 'pln_token', label: 'Token Listrik PLN', icon: 'fa-key' },
+            { id: 'pulsa', label: 'Pulsa & Paket Data', icon: 'fa-mobile-screen' },
+            { id: 'indihome', label: 'Indihome / Telkom', icon: 'fa-wifi' },
+            { id: 'general', label: 'Nota Toko / Umim', icon: 'fa-basket-shopping' },
+        ];
+
+        // State Store
+        let currentCategory = 'pdam';
+        let paperWidth = '80'; // '58' or '80'
+        let generalItems = [
+            { name: 'Kertas HVS A4 80gr', qty: 1, price: 60000 },
+            { name: 'Flashdisk 32GB Kingston', qty: 1, price: 75000 }
+        ];
+
+        // Application Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initCategoryButtons();
+            setDefaultDateTime();
+            generateTrxNo();
+            loadCategoryForm(currentCategory);
+        });
+
+        // Initialize Category Choice Selector UI
+        function initCategoryButtons() {
+            const container = document.getElementById('category-buttons');
+            container.innerHTML = CATEGORIES.map(cat => `
+                <button type="button" 
+                        onclick="switchCategory('${cat.id}')"
+                        id="cat-btn-${cat.id}"
+                        class="p-3 rounded-xl border text-left flex flex-col items-start gap-1.5 transition-all text-xs font-medium ${cat.id === currentCategory ? 'bg-brand-50 border-brand-500 text-brand-700 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'}">
+                    <i class="fa-solid ${cat.icon} text-base ${cat.id === currentCategory ? 'text-brand-600' : 'text-slate-400'}"></i>
+                    <span>${cat.label}</span>
+                </button>
+            `).join('');
+        }
+
+        // Switch Category Dynamic Logic
+        function switchCategory(catId) {
+            currentCategory = catId;
+            initCategoryButtons();
+            loadCategoryForm(catId);
+        }
+
+        // Set default Date and Time
+        function setDefaultDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+
+            document.getElementById('input-date').value = `${year}-${month}-${day}`;
+            document.getElementById('input-time').value = `${hours}:${minutes}`;
+
+            document.getElementById('input-date').addEventListener('change', renderReceipt);
+            document.getElementById('input-time').addEventListener('change', renderReceipt);
+            document.getElementById('input-trxno').addEventListener('input', renderReceipt);
+        }
+
+        // Auto Generate Trx Number
+        function generateTrxNo() {
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0');
+            const randomDigits = Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('input-trxno').value = `NJM-${timestamp}-${randomDigits}`;
+        }
+
+        // Load Dynamic Form Fields based on Category
+        function loadCategoryForm(category) {
+            const form = document.getElementById('dynamic-form');
+            const formTitle = document.getElementById('form-title');
+            
+            let html = '';
+            
+            if (category === 'pdam') {
+                formTitle.innerHTML = `<i class="fa-solid fa-droplet text-brand-600"></i> Data Tagihan Air PDAM`;
+                html = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">ID Pelanggan / No. Meter</label>
+                            <input type="text" id="pdam-id" value="5104082910" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nama Pelanggan</label>
+                            <input type="text" id="pdam-name" value="LA ODE MUHAMMAD" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Periode Tagihan</label>
+                            <input type="text" id="pdam-period" value="OKTOBER 2026" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Stand Meter (Awal-Akhir)</label>
+                            <input type="text" id="pdam-meter" value="001240 - 001275" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Pemakaian (m³)</label>
+                            <input type="text" id="pdam-usage" value="35 m³" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Tagihan PDAM (Rp)</label>
+                        <input type="number" id="pdam-amount" value="87500" oninput="updateCalculation()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                    </div>
+                `;
+            } 
+            else if (category === 'pln_pasca') {
+                formTitle.innerHTML = `<i class="fa-solid fa-bolt text-brand-600"></i> Data Listrik PLN Pasca Bayar`;
+                html = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">ID Pelanggan PLN</label>
+                            <input type="text" id="pln-id" value="538102938471" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nama Pelanggan</label>
+                            <input type="text" id="pln-name" value="WA ODE SITTI" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Tarif / Daya</label>
+                            <input type="text" id="pln-tariff" value="R1M / 900 VA" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Stand Meter</label>
+                            <input type="text" id="pln-stand" value="045230-045610" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Tagihan PLN (Rp)</label>
+                        <input type="number" id="pln-amount" value="215000" oninput="updateCalculation()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                    </div>
+                `;
+            }
+            else if (category === 'pln_token') {
+                formTitle.innerHTML = `<i class="fa-solid fa-key text-brand-600"></i> Data Pembelian Token Listrik`;
+                html = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">ID Pelanggan / No Meter</label>
+                            <input type="text" id="token-id" value="32098471920" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nama Pelanggan</label>
+                            <input type="text" id="token-name" value="RAHMAT HIDAYAT" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Tarif / Daya</label>
+                            <input type="text" id="token-tariff" value="R1 / 1300 VA" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nominal Token (Rp)</label>
+                            <input type="number" id="token-amount" value="100000" oninput="updateCalculation()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-medium text-slate-700">Kode Token (20 Digit Strum)</label>
+                            <button type="button" onclick="generateRandomToken()" class="text-[11px] text-brand-600 hover:underline">Acak Kode</button>
+                        </div>
+                        <input type="text" id="token-code" value="4821 9051 2234 8192 0184" oninput="renderReceipt()" class="w-full text-xs font-mono border border-slate-200 rounded-lg p-2 focus:border-brand-500 tracking-wider font-bold text-brand-700 bg-blue-50/50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Jumlah KWh Acquired</label>
+                        <input type="text" id="token-kwh" value="67.2 kWh" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                    </div>
+                `;
+            }
+            else if (category === 'pulsa') {
+                formTitle.innerHTML = `<i class="fa-solid fa-mobile-screen text-brand-600"></i> Pembelian Pulsa / Data`;
+                html = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nomor HP Tujuan</label>
+                            <input type="text" id="pulsa-phone" value="085298875399" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Operator / Provider</label>
+                            <select id="pulsa-provider" onchange="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                                <option value="TELKOMSEL (AS/SIMPATI)">TELKOMSEL</option>
+                                <option value="INDOSAT OOREDOO">INDOSAT</option>
+                                <option value="XL AXIATA">XL AXIATA</option>
+                                <option value="SMARTFREN">SMARTFREN</option>
+                                <option value="TRI (3)">TRI (3)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Deskripsi Produk / Paket</label>
+                        <input type="text" id="pulsa-desc" value="Telkomsel Data Internet 10GB 30 Hari" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Harga Produk (Rp)</label>
+                        <input type="number" id="pulsa-amount" value="55000" oninput="updateCalculation()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                    </div>
+                `;
+            }
+            else if (category === 'indihome') {
+                formTitle.innerHTML = `<i class="fa-solid fa-wifi text-brand-600"></i> Tagihan Indihome / Telkom`;
+                html = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">ID Internet / Telepon</label>
+                            <input type="text" id="indi-id" value="122394857102" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Nama Pelanggan</label>
+                            <input type="text" id="indi-name" value="TOKO NAJMA" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Bulan Tagihan</label>
+                        <input type="text" id="indi-period" value="OKTOBER 2026" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Tagihan Telkom (Rp)</label>
+                        <input type="number" id="indi-amount" value="345000" oninput="updateCalculation()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500 font-semibold">
+                    </div>
+                `;
+            }
+            else if (category === 'general') {
+                formTitle.innerHTML = `<i class="fa-solid fa-basket-shopping text-brand-600"></i> Rincian Barang / Jasa Store`;
+                html = `
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Nama Pelanggan (Opsional)</label>
+                        <input type="text" id="gen-customer" value="Pelanggan Umum" oninput="renderReceipt()" class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:border-brand-500">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-xs font-medium text-slate-700">Daftar Item / Produk</label>
+                        <div id="general-items-list" class="space-y-2">
+                            <!-- Items injected dynamically -->
+                        </div>
+                        <button type="button" onclick="addGeneralItem()" class="w-full py-1.5 border border-dashed border-brand-400 text-brand-600 hover:bg-brand-50 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-plus text-xs"></i> Tambah Item Barang
+                        </button>
+                    </div>
+                `;
+            }
+
+            form.innerHTML = html;
+            
+            if (category === 'general') {
+                renderGeneralItemsForm();
+            }
+
+            renderReceipt();
+        }
+
+        // Functions for General Category Items
+        function renderGeneralItemsForm() {
+            const container = document.getElementById('general-items-list');
+            if (!container) return;
+
+            container.innerHTML = generalItems.map((item, idx) => `
+                <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    <input type="text" placeholder="Nama Barang" value="${item.name}" oninput="updateGeneralItem(${idx}, 'name', this.value)" class="flex-1 text-xs border border-slate-200 rounded px-2 py-1">
+                    <input type="number" placeholder="Qty" value="${item.qty}" min="1" oninput="updateGeneralItem(${idx}, 'qty', this.value)" class="w-12 text-xs border border-slate-200 rounded px-1.5 py-1 text-center">
+                    <input type="number" placeholder="Harga" value="${item.price}" oninput="updateGeneralItem(${idx}, 'price', this.value)" class="w-24 text-xs border border-slate-200 rounded px-2 py-1">
+                    <button type="button" onclick="removeGeneralItem(${idx})" class="text-red-500 hover:text-red-700 p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addGeneralItem() {
+            generalItems.push({ name: 'Barang Baru', qty: 1, price: 10000 });
+            renderGeneralItemsForm();
+            renderReceipt();
+        }
+
+        function removeGeneralItem(idx) {
+            if (generalItems.length <= 1) return;
+            generalItems.splice(idx, 1);
+            renderGeneralItemsForm();
+            renderReceipt();
+        }
+
+        function updateGeneralItem(idx, field, value) {
+            if (field === 'qty' || field === 'price') {
+                generalItems[idx][field] = parseFloat(value) || 0;
+            } else {
+                generalItems[idx][field] = value;
+            }
+            renderReceipt();
+        }
+
+        // Random generator for Electric Token
+        function generateRandomToken() {
+            let res = '';
+            for (let i = 0; i < 4; i++) {
+                res += Math.floor(1000 + Math.random() * 9000).toString() + ' ';
+            }
+            const tokenInput = document.getElementById('token-code');
+            if (tokenInput) {
+                tokenInput.value = res.trim();
+                renderReceipt();
+            }
+        }
+
+        // Recalculate Totals
+        function updateCalculation() {
+            renderReceipt();
+        }
+
+        // Format Currency Helper
+        function formatRp(val) {
+            return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
+        }
+
+        // Main Rendering Engine for live Thermal Receipt
+        function renderReceipt() {
+            // Metadata
+            const trxNo = document.getElementById('input-trxno')?.value || 'NJM-000';
+            const dateVal = document.getElementById('input-date')?.value || '';
+            const timeVal = document.getElementById('input-time')?.value || '';
+            const adminFee = parseFloat(document.getElementById('input-admin')?.value) || 0;
+            const statusVal = document.getElementById('input-status')?.value || 'LUNAS';
+
+            // Format date string
+            let formattedDateTime = `${dateVal} ${timeVal}`;
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                formattedDateTime = `${d}/${m}/${y} ${timeVal}`;
+            }
+
+            document.getElementById('rec-trxno').innerText = trxNo;
+            document.getElementById('rec-datetime').innerText = formattedDateTime;
+
+            // Status Badge
+            const statusBadge = document.getElementById('rec-status-badge');
+            statusBadge.innerText = statusVal;
+            if (statusVal === 'LUNAS') {
+                statusBadge.className = 'inline-block px-3 py-0.5 rounded text-xs font-bold border border-slate-900 bg-slate-900 text-white';
+            } else if (statusVal === 'PENDING') {
+                statusBadge.className = 'inline-block px-3 py-0.5 rounded text-xs font-bold border border-amber-600 text-amber-700 bg-amber-50';
+            } else {
+                statusBadge.className = 'inline-block px-3 py-0.5 rounded text-xs font-bold border border-red-600 text-red-700 bg-red-50';
+            }
+
+            const titleEl = document.getElementById('rec-title');
+            const detailsEl = document.getElementById('rec-details');
+            const finEl = document.getElementById('rec-financials');
+
+            let mainAmount = 0;
+            let detailsHTML = '';
+
+            if (currentCategory === 'pdam') {
+                titleEl.innerText = 'STRUK TAGIHAN AIR PDAM';
+                const id = document.getElementById('pdam-id')?.value || '-';
+                const name = document.getElementById('pdam-name')?.value || '-';
+                const period = document.getElementById('pdam-period')?.value || '-';
+                const meter = document.getElementById('pdam-meter')?.value || '-';
+                const usage = document.getElementById('pdam-usage')?.value || '-';
+                mainAmount = parseFloat(document.getElementById('pdam-amount')?.value) || 0;
+
+                detailsHTML = `
+                    <div class="flex justify-between"><span>ID Pelanggan</span><span class="font-bold text-right">${id}</span></div>
+                    <div class="flex justify-between"><span>Nama Pel</span><span class="font-bold text-right truncate max-w-[150px]">${name}</span></div>
+                    <div class="flex justify-between"><span>Periode</span><span class="text-right">${period}</span></div>
+                    <div class="flex justify-between"><span>Stand Meter</span><span class="text-right">${meter}</span></div>
+                    <div class="flex justify-between"><span>Pemakaian</span><span class="text-right">${usage}</span></div>
+                `;
+            } 
+            else if (currentCategory === 'pln_pasca') {
+                titleEl.innerText = 'STRUK LISTRIK PASCA BAYAR';
+                const id = document.getElementById('pln-id')?.value || '-';
+                const name = document.getElementById('pln-name')?.value || '-';
+                const tariff = document.getElementById('pln-tariff')?.value || '-';
+                const stand = document.getElementById('pln-stand')?.value || '-';
+                mainAmount = parseFloat(document.getElementById('pln-amount')?.value) || 0;
+
+                detailsHTML = `
+                    <div class="flex justify-between"><span>ID Pelanggan</span><span class="font-bold text-right">${id}</span></div>
+                    <div class="flex justify-between"><span>Nama Pel</span><span class="font-bold text-right truncate max-w-[150px]">${name}</span></div>
+                    <div class="flex justify-between"><span>Tarif/Daya</span><span class="text-right">${tariff}</span></div>
+                    <div class="flex justify-between"><span>Stand Meter</span><span class="text-right">${stand}</span></div>
+                `;
+            }
+            else if (currentCategory === 'pln_token') {
+                titleEl.innerText = 'STRUK TOKEN LISTRIK PLN';
+                const id = document.getElementById('token-id')?.value || '-';
+                const name = document.getElementById('token-name')?.value || '-';
+                const tariff = document.getElementById('token-tariff')?.value || '-';
+                const code = document.getElementById('token-code')?.value || '-';
+                const kwh = document.getElementById('token-kwh')?.value || '-';
+                mainAmount = parseFloat(document.getElementById('token-amount')?.value) || 0;
+
+                detailsHTML = `
+                    <div class="flex justify-between"><span>No Meter/ID</span><span class="font-bold text-right">${id}</span></div>
+                    <div class="flex justify-between"><span>Nama Pel</span><span class="font-bold text-right truncate max-w-[150px]">${name}</span></div>
+                    <div class="flex justify-between"><span>Tarif/Daya</span><span class="text-right">${tariff}</span></div>
+                    <div class="flex justify-between"><span>Jml kWh</span><span class="text-right">${kwh}</span></div>
+                    <div class="my-2 p-2 bg-slate-100 rounded text-center border border-dashed border-slate-300">
+                        <span class="block text-[9px] uppercase tracking-wider text-slate-500">Strum / Kode Token</span>
+                        <span class="font-bold text-sm tracking-wider block font-mono my-0.5">${code}</span>
+                    </div>
+                `;
+            }
+            else if (currentCategory === 'pulsa') {
+                titleEl.innerText = 'STRUK PULSA / PAKET DATA';
+                const phone = document.getElementById('pulsa-phone')?.value || '-';
+                const provider = document.getElementById('pulsa-provider')?.value || '-';
+                const desc = document.getElementById('pulsa-desc')?.value || '-';
+                mainAmount = parseFloat(document.getElementById('pulsa-amount')?.value) || 0;
+
+                detailsHTML = `
+                    <div class="flex justify-between"><span>No. HP Tujuan</span><span class="font-bold text-right">${phone}</span></div>
+                    <div class="flex justify-between"><span>Operator</span><span class="text-right">${provider}</span></div>
+                    <div class="flex justify-between"><span>Produk</span><span class="text-right truncate max-w-[160px]">${desc}</span></div>
+                `;
+            }
+            else if (currentCategory === 'indihome') {
+                titleEl.innerText = 'STRUK PEMBAYARAN TELKOM';
+                const id = document.getElementById('indi-id')?.value || '-';
+                const name = document.getElementById('indi-name')?.value || '-';
+                const period = document.getElementById('indi-period')?.value || '-';
+                mainAmount = parseFloat(document.getElementById('indi-amount')?.value) || 0;
+
+                detailsHTML = `
+                    <div class="flex justify-between"><span>ID Internet</span><span class="font-bold text-right">${id}</span></div>
+                    <div class="flex justify-between"><span>Nama Pel</span><span class="font-bold text-right truncate max-w-[150px]">${name}</span></div>
+                    <div class="flex justify-between"><span>Bulan Tagihan</span><span class="text-right">${period}</span></div>
+                `;
+            }
+            else if (currentCategory === 'general') {
+                titleEl.innerText = 'NOTA PENJUALAN TOKO';
+                const cust = document.getElementById('gen-customer')?.value || 'Umum';
+                
+                let itemLines = '';
+                let itemsSubtotal = 0;
+
+                generalItems.forEach(item => {
+                    const lineTotal = item.qty * item.price;
+                    itemsSubtotal += lineTotal;
+                    itemLines += `
+                        <div class="space-y-0.5">
+                            <div class="font-bold">${item.name}</div>
+                            <div class="flex justify-between text-[10px] text-slate-600">
+                                <span>${item.qty} x ${formatRp(item.price)}</span>
+                                <span>${formatRp(lineTotal)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                mainAmount = itemsSubtotal;
+
+                detailsHTML = `
+                    <div class="flex justify-between mb-2 pb-1 border-b border-slate-200">
+                        <span>Pelanggan</span>
+                        <span class="font-bold text-right">${cust}</span>
+                    </div>
+                    <div class="space-y-1.5">
+                        ${itemLines}
+                    </div>
+                `;
+            }
+
+            detailsEl.innerHTML = detailsHTML;
+
+            // Financial Summary calculation
+            const grandTotal = mainAmount + adminFee;
+
+            finEl.innerHTML = `
+                <div class="flex justify-between">
+                    <span>Tagihan / Subtotal</span>
+                    <span class="text-right font-medium">${formatRp(mainAmount)}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Biaya Admin</span>
+                    <span class="text-right font-medium">${formatRp(adminFee)}</span>
+                </div>
+                <div class="flex justify-between text-xs font-bold pt-1 border-t border-slate-300">
+                    <span>TOTAL BAYAR</span>
+                    <span class="text-right text-sm">${formatRp(grandTotal)}</span>
+                </div>
+            `;
+
+            // Render Barcode
+            try {
+                JsBarcode("#barcode-svg", trxNo, {
+                    format: "CODE128",
+                    width: 1.5,
+                    height: 35,
+                    displayValue: false,
+                    margin: 0
+                });
+            } catch (e) {
+                console.error("Barcode render error", e);
+            }
+        }
+
+        // Toggle Paper Width (58mm / 80mm)
+        function setPaperWidth(width) {
+            paperWidth = width;
+            const container = document.getElementById('receipt-container');
+            const btn58 = document.getElementById('btn-w58');
+            const btn80 = document.getElementById('btn-w80');
+
+            if (width === '58') {
+                container.className = 'w-full max-w-[270px] transition-all duration-300';
+                btn58.className = 'px-2 py-0.5 text-xs rounded bg-brand-600 text-white font-mono transition-colors';
+                btn80.className = 'px-2 py-0.5 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition-colors';
+            } else {
+                container.className = 'w-full max-w-[360px] transition-all duration-300';
+                btn80.className = 'px-2 py-0.5 text-xs rounded bg-brand-600 text-white font-mono transition-colors';
+                btn58.className = 'px-2 py-0.5 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono transition-colors';
+            }
+        }
+
+        // Action: Print Receipt
+        function handlePrint() {
+            window.print();
+        }
+
+        // Action: Copy Receipt Details as Clean Plaintext
+        function handleCopyText() {
+            const trxNo = document.getElementById('rec-trxno')?.innerText || '';
+            const date = document.getElementById('rec-datetime')?.innerText || '';
+            const title = document.getElementById('rec-title')?.innerText || '';
+            
+            let text = `==============================\n`;
+            text += `     TOKO NAJMA KOMPUTER      \n`;
+            text += ` Desa Numana, Kec. Wanci Selatan \n`;
+            text += `  Kab. Wakatobi - 085298875399  \n`;
+            text += `==============================\n`;
+            text += `${title}\n`;
+            text += `No. Trx : ${trxNo}\n`;
+            text += `Tgl/Wkt : ${date}\n`;
+            text += `------------------------------\n`;
+
+            if (currentCategory === 'pdam') {
+                text += `ID Pel  : ${document.getElementById('pdam-id')?.value}\n`;
+                text += `Nama    : ${document.getElementById('pdam-name')?.value}\n`;
+                text += `Periode : ${document.getElementById('pdam-period')?.value}\n`;
+            } else if (currentCategory === 'pln_token') {
+                text += `ID Pel  : ${document.getElementById('token-id')?.value}\n`;
+                text += `Nama    : ${document.getElementById('token-name')?.value}\n`;
+                text += `TOKEN   : ${document.getElementById('token-code')?.value}\n`;
+            } else if (currentCategory === 'pulsa') {
+                text += `No. HP  : ${document.getElementById('pulsa-phone')?.value}\n`;
+                text += `Produk  : ${document.getElementById('pulsa-desc')?.value}\n`;
+            } else if (currentCategory === 'general') {
+                generalItems.forEach(i => {
+                    text += `${i.name} x${i.qty} = Rp ${i.qty * i.price}\n`;
+                });
+            }
+
+            const grandTotalStr = document.querySelector('#rec-financials div:last-child span:last-child')?.innerText || '';
+            text += `------------------------------\n`;
+            text += `TOTAL BAYAR : ${grandTotalStr}\n`;
+            text += `STATUS      : LUNAS\n`;
+            text += `==============================\n`;
+            text += ` Terima Kasih Atas Kunjungan Anda\n`;
+
+            // Clipboard fallback logic
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Struk berhasil disalin ke clipboard!');
+                });
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('Struk berhasil disalin!');
+                } catch (err) {
+                    showToast('Gagal menyalin struk', true);
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // Action: Download Struk as Image
+        function handleDownloadImage() {
+            const element = document.getElementById('printable-receipt');
+            showToast('Mengekspor gambar struk...');
+            
+            html2canvas(element, {
+                scale: 2, // Higher quality
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const trxNo = document.getElementById('rec-trxno')?.innerText || 'Struk';
+                link.download = `Struk_NajmaKomputer_${trxNo}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('Gambar struk berhasil diunduh!');
+            }).catch(err => {
+                console.error(err);
+                showToast('Gagal mengunduh gambar', true);
+            });
+        }
+
+        // Action: Reset Form Data
+        function resetForm() {
+            generateTrxNo();
+            loadCategoryForm(currentCategory);
+            showToast('Form berhasil di-reset');
+        }
+
+        // Local Storage History Operations
+        function saveTransactionToHistory() {
+            const trxNo = document.getElementById('rec-trxno')?.innerText || '';
+            const title = document.getElementById('rec-title')?.innerText || '';
+            const date = document.getElementById('rec-datetime')?.innerText || '';
+            const grandTotalStr = document.querySelector('#rec-financials div:last-child span:last-child')?.innerText || '0';
+
+            const record = {
+                id: Date.now(),
+                trxNo: trxNo,
+                title: title,
+                date: date,
+                category: currentCategory,
+                total: grandTotalStr
+            };
+
+            let history = JSON.parse(localStorage.getItem('najma_trx_history') || '[]');
+            history.unshift(record);
+            localStorage.setItem('najma_trx_history', JSON.stringify(history));
+
+            showToast('Transaksi disimpan ke riwayat lokal!');
+        }
+
+        function toggleHistoryModal() {
+            const modal = document.getElementById('history-modal');
+            if (modal.classList.contains('hidden')) {
+                renderHistoryList();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderHistoryList() {
+            const container = document.getElementById('history-list');
+            let history = JSON.parse(localStorage.getItem('najma_trx_history') || '[]');
+
+            if (history.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 space-y-2">
+                        <i class="fa-solid fa-box-open text-3xl"></i>
+                        <p class="text-xs">Belum ada riwayat transaksi tersimpan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between hover:border-brand-300 transition-colors">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-xs text-slate-800">${item.trxNo}</span>
+                            <span class="text-[10px] px-2 py-0.5 bg-brand-100 text-brand-700 font-semibold rounded-full">${item.title}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-1">${item.date}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-xs text-slate-900">${item.total}</div>
+                        <button onclick="deleteHistoryItem(${item.id})" class="text-[10px] text-red-500 hover:underline mt-1">Hapus</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteHistoryItem(id) {
+            let history = JSON.parse(localStorage.getItem('najma_trx_history') || '[]');
+            history = history.filter(item => item.id !== id);
+            localStorage.setItem('najma_trx_history', JSON.stringify(history));
+            renderHistoryList();
+            showToast('Riwayat dihapus');
+        }
+
+        function clearAllHistory() {
+            if (confirm('Apakah Anda yakin ingin menghapus semua riwayat transaksi?')) {
+                localStorage.removeItem('najma_trx_history');
+                renderHistoryList();
+                showToast('Semua riwayat dibersihkan');
+            }
+        }
+
+        // Notification Toast UI Helper
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = message;
+            if (isError) {
+                toastIcon.className = 'fa-solid fa-triangle-exclamation text-red-400';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
